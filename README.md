@@ -14,8 +14,14 @@ All project PDFs can be found on this github repo: github.com/frontierclimate/ca
 To download the data in bulk, use this website: https://download-directory.github.io/ and copy and paste the above repo links into the website for a ZIP file of all raw data. 
 Raw data is ignored (see gitignore) and must be downloaded yourself. 
 
-## Code 
+## Scripts 
 Currently three scripts:
 (1) PDF scraping 
 (2) Data merging
 (3) Financial data assembly 
+
+## Next steps
+We will increase clarity of data manipulation in the Scripts- description. W
+We will use the third script to build out a data set of all projects with relevant firm-level characteristics
+We may expand code to include relevant policies. 
+We may expand code to include originally collected data (tbd). 
