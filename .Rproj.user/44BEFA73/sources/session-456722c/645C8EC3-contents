@@ -1,5 +1,6 @@
 install.packages("pdftools", dependencies=TRUE)
-install.packages("tabulizer") # to parse out tables in the PDF
+install.packages("tabulizer") # to parse out tables in the PDF (requires rJava environment)
+install.packages("devtools") # need to ensure Rtools - dependency - is installede here 
 #install.packages("pdftools")
 library(pdftools)
 library(tabulizer)
@@ -33,6 +34,10 @@ dfmod <- dftest %>%
   mutate(table_split = gsub("\\s{2,}", " ", table_split))
 # need to trouble shoot - because there are some parts of the table where the text goes onto two lines
 ## and therefore this string-split is not capturing this fully 
+
+# next approach ---- taking cdr_23 and using tabulizer
+cdr_23_tab <- locate_areas(mfiles[3])
+
 
 
 
