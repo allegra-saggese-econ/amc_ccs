@@ -1,10 +1,13 @@
 install.packages("pdftools", dependencies=TRUE)
+install.packages("tabulizer") # to parse out tables in the PDF
+#install.packages("pdftools")
 library(pdftools)
+library(tabulizer)
 library(tidyr)
 library(lubridate)
 library(kableExtra)
 library(dplyr)
-
+library(tidyverse)
 
 # A: PURPOSE: Extract tables from Microsoft Annual reports on purchase agreements 
 # Set working directory
@@ -15,6 +18,47 @@ cdr_23 <- pdftools::pdf_text(pdf = mfiles[3])
 
 write(cdr_23)
 
+tablekey <- "Supplier"
+table_unformat <- grep(tablekey, cdr_23, value=TRUE)
+table_split <- unlist(strsplit(table_unformat, "\n\n\n"))
+# drop the headers/footers from the string of characters in the PDF
+dftest <- data.frame(table_split) %>% 
+    filter(!row_number() %in% c(3)) %>% 
+    filter(!row_number() %in% c(9)) %>%
+    filter(!row_number() %in% c(6)) %>%
+    filter(!row_number() %in% c(6)) %>%
+    filter(!row_number() %in% c(3))
+
+dfmod <- dftest %>%  
+  mutate(table_split = gsub("\\s{2,}", " ", table_split))
+# need to trouble shoot - because there are some parts of the table where the text goes onto two lines
+## and therefore this string-split is not capturing this fully 
+
+
+
+
+# generate a function to split the data into separate columns based on distance from next character
+# can only do this once the dataframe is a bit more clean
+split_string <- function(row) {
+  split_values <- unlist(strsplit(row, " "))
+  new_values <- character(0)
+  current_chunk <- ""
+  for (value in split_values) {
+    if (nchar(value) > 5) { # make the difference
+      if (nzchar(current_chunk)) {
+        new_values <- c(new_values, current_chunk)
+        current_chunk <- ""
+      }
+      new_values <- c(new_values, value)
+    } else {
+      current_chunk <- paste(current_chunk, value, sep = " ")
+    }
+  }
+  if (nzchar(current_chunk)) {
+    new_values <- c(new_values, current_chunk)
+  }
+  return(new_values)
+}
 
 
 
