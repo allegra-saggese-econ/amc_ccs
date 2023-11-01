@@ -10,19 +10,23 @@ library(dplyr)
 # Set working directory
 setwd("~/")
 setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\microsoft_2022_23")
+mfiles <- list.files(pattern = "pdf$" )# create a vector of PDF file names
+cdr_23 <- pdftools::pdf_text(pdf = mfiles[3])
 
-
-
-
-
+write(cdr_23)
 
 
 
 
 # B: PURPOSE: Extract relevant text from PDFs of project applications for Stripe / Frontier 
 setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\applications_2022_23\\2022_fall")
-files <- list.files(pattern = "pdf$" )# create a vector of PDF file names
+files <- list.files(pattern = "pdf$") # create a vector of PDF file names - 2022 fall only
+# repeat for spring22/summer23
+setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\applications_2022_23\\2022_spring")
+spfiles <- list.files(pattern = "pdf$")
 
+setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\applications_2022_23\\2023_summer")
+sumfiles <- list.files(pattern = "pdf$")
 
 ## Case example - use one PDF to see what relevant information can be extracted (and how)
 bob<-pdftools::pdf_text(pdf = files[1])
@@ -54,6 +58,10 @@ bottom_df <- unlist(strsplit(p2,"\n")) %>% data.frame(Text=p2) %>%
   subset()
 
 #step 2: next table - patent data - p2 contains PATENT DATA - we should extract! 
+
+
+# step X: export firm-level data set (eventually we will want to push them all into the same dataframe)
+## don't forget to set the WD to the output folder 
 
 
 ## Looping application - run the test cases over the entirety of the project folder, 
