@@ -1,0 +1,12 @@
+# script to clean and merge the microsoft data into one dataset
+# data was scraped from PDF, using Excel - PDF extraction software (no coding)
+# data includes only projects selected (not the applicant pool)
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(readr)
+
+# read in the three datasets 
+getwd()
+setwd("/csv_projects")

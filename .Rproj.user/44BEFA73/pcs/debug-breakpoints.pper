@@ -1,5 +1,21 @@
 {
     "debugBreakpointsState": {
-        "breakpoints": []
+        "breakpoints": [
+            {
+                "id": 0,
+                "path": "C:/Users/SAGGESE/Documents/GitHub/amc_ccs/pdf_scrape.R",
+                "line_number": 53,
+                "function_steps": "",
+                "function_name": "split_string",
+                "state": 2,
+                "editor_state": 2,
+                "editor_line_number": 53,
+                "is_pending_debug_completion": false,
+                "needs_updated_steps": true,
+                "type": 0,
+                "is_package_breakpoint": false,
+                "package_name": ""
+            }
+        ]
     }
 }

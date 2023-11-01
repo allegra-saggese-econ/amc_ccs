@@ -4,6 +4,7 @@ install.packages("devtools") # need to ensure Rtools - dependency - is installed
 #install.packages("pdftools")
 library(pdftools)
 library(tabulizer)
+library(tabulizerjars)
 library(tidyr)
 library(lubridate)
 library(kableExtra)
@@ -36,10 +37,15 @@ dfmod <- dftest %>%
 ## and therefore this string-split is not capturing this fully 
 
 # next approach ---- taking cdr_23 and using tabulizer
-cdr_23_tab <- locate_areas(mfiles[3])
+# testing pure extraction of tables - lines do not line up well at all - skip this approach 
+table_list <- extract_tables(mfiles[3], pages = 21:23)
 
-
-
+# test function for extraction of tables - fails                              
+for (i in 1:length(table_list)) {
+  cat(paste("Table", i, ":\n"))
+  df <- as.data.frame(table_list[[i]])
+  print(df)
+}
 
 
 # generate a function to split the data into separate columns based on distance from next character
