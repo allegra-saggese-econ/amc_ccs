@@ -1,0 +1,28 @@
+{
+    "id": "6D0E6116",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1699531554432.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "id": "e2229ac2f02042bdb86a3b70f95375e3",
+        "name": "no_control",
+        "title": "no_control",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1698860840,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1699531554432,
+    "read_only": false,
+    "read_only_alternatives": []
+}
