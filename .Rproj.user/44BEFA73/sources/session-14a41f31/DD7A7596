@@ -1,24 +1,24 @@
 {
-    "id": "579F62CD",
+    "id": "DD7A7596",
     "path": null,
     "project_path": null,
     "type": "r_dataframe",
     "hash": "0",
     "contents": "",
     "dirty": false,
-    "created": 1699533440484.0,
+    "created": 1699534207741.0,
     "source_on_save": false,
-    "relative_order": 4,
+    "relative_order": 6,
     "properties": {
         "expression": "sum_1",
         "caption": "sum_1",
         "totalObservations": 4,
         "displayedObservations": 4,
         "variables": 2,
-        "cacheKey": "4CB68107",
+        "cacheKey": "21E96139",
         "object": "sum_1",
         "environment": "",
-        "contentUrl": "grid_resource/gridviewer.html?env=&obj=sum_1&cache_key=4CB68107&max_cols=50",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=sum_1&cache_key=21E96139&max_cols=50",
         "preview": 0,
         "source_window_id": "",
         "Source": "Source"
@@ -28,7 +28,7 @@
     "encoding": "",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1699533440484,
+    "last_content_update": 1699534207741,
     "read_only": false,
     "read_only_alternatives": []
 }
