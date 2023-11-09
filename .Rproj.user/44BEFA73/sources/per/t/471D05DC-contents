@@ -45,7 +45,8 @@ sum_1 <- stripedf %>% group_by(year) %>%
   as.data.frame()
 
 stripedf$awardednum <- as.numeric(stripedf$awarded)
-award_onlydf <- stripedf %>% filter(awarded>0)
+award_onlydf <- stripedf %>% 
+  filter(awarded>0)
 prop_onlydf <- stripedf %>% filter(awarded==0)
 
 
@@ -72,14 +73,21 @@ summary_join <- full_join(tot_award_sum, tot_losses_sum)
 # ggplot 
 #ggsummarystats(stripedf, x="price", y = "offer_quantity", color="awarded")
 
-plotdata <- stripedf %>% filter(price<1000000)
+plotdata <- stripedf %>% filter(price<1000000) %>% filter(offer_quantity<10000000)
+fine_tune <- stripedf %>% filter(price<10000) %>% filter(offer_quantity<100000)
 ggplot(data=plotdata, aes(x=year, y=price))+ geom_point()
 
 
 price_histo <- ggplot(data=plotdata, aes(x=price))+ geom_histogram(bins=20)
-price_histo_winners <- ggplot(data=award_onlydf, aes(x=price))+ geom_histogram(bins=20)
-price_histo_losers <- ggplot(data=prop_onlydf, aes(x=price))+ geom_histogram(bins=20)
+price_histo_winners <- ggplot(data=award_onlydf, aes(x=award_onlydf$price))+ geom_histogram(bins=20)
+price_histo_losers <- ggplot(data=prop_onlydf, aes(x=prop_onlydf$price))+ geom_histogram(bins=20)
 
+ggplot(award_onlydf, aes(x = award_onlydf$price, y = award_onlydf$offer_quantity)) + geom_point()
+ggplot(fine_tune, aes(x = fine_tune$price, y = fine_tune$offer_quantity)) + geom_point()
+
+
+ggplot(award_onlydf, aes(x = year, y = price)) + geom_point()
+ggplot(award_onlydf, aes(x = year, y = offer_quantity)) + geom_point()
 
 #make awarded numeric again
 stripedf[,'awarded'] <- as.numeric(stripedf[,'awarded']) 
