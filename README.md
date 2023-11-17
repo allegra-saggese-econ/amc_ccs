@@ -21,11 +21,11 @@ Raw data is ignored (see gitignore) and must be downloaded yourself.
 
 ## Scripts 
 Currently three scripts:
-(1) PDF scraping -- includes use of pdftools to parse using keyword, includes use of PDE package to scrape list of firm names. All code is test code for Stripe, used for Microsoft
-(2) Microsoft data cleaning -- read in world of applicants from CDR and match with Microsoft's disclosed winners. Can only match 2020 data. Project codes from winning projects are identified. See notes -- not all project applicants are awarded as is, some are merged into one large purchase or one partial purchase, data cleaning needed here
-(3) Stripe data cleaning -- read in manual data set and produce summary statistics on Stripe data (including probit model for determining success of applicant based on limited characteristics)
-(4) Financial data assembly -- TBD 
-(5) Policies and general projects -- TBD
+- (1) PDF scraping -- includes use of pdftools to parse using keyword, includes use of PDE package to scrape list of firm names. All code is test code for Stripe, used for Microsoft
+- (2) Microsoft data cleaning -- read in world of applicants from CDR and match with Microsoft's disclosed winners. Can only match 2020 data. Project codes from winning projects are identified. See notes -- not all project applicants are awarded as is, some are merged into one large purchase or one partial purchase, data cleaning needed here
+- (3) Stripe data cleaning -- read in manual data set and produce summary statistics on Stripe data (including probit model for determining success of applicant based on limited characteristics)
+- (4) Financial data assembly -- TBD 
+- (5) Policies and general projects -- TBD
 
 ## Next steps
 We will increase clarity of data manipulation in the Scripts- description. 
