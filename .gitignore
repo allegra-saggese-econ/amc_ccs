@@ -3,7 +3,7 @@
 .Rapp.history
 
 # data files
-data/applications_2022_23
+data/stripe_data
 data/microsoft_2022_23
 data/PATSTAT
 
