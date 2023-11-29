@@ -1,8 +1,14 @@
-install.packages("pdftools", dependencies=TRUE)
-install.packages("tabulizer") # to parse out tables in the PDF (requires rJava environment)
-install.packages("devtools") # need to ensure Rtools - dependency - is installede here 
+#install.packages("pdftools", dependencies=TRUE)
+#install.packages("tabulizer") # to parse out tables in the PDF (requires rJava environment)
+#install.packages("devtools") # need to ensure Rtools - dependency - is installede here 
 #install.packages("pdftools")
+# second choice on the package
+#install.packages("tcltk2") 
+#install.packages("PDE", dependencies = TRUE)
+
+# libraries
 library(pdftools)
+library(devtools)
 library(tabulizer)
 library(tabulizerjars)
 library(tidyr)
@@ -10,9 +16,6 @@ library(lubridate)
 library(kableExtra)
 library(dplyr)
 library(tidyverse)
-# second choice on the package
-install.packages("tcltk2") 
-install.packages("PDE", dependencies = TRUE)
 library(tcltk2)
 library(PDE)
 
@@ -22,29 +25,76 @@ library(PDE)
   setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\stripe_data\\2020_total")
   f20 <- list.files(pattern = "pdf$")
   
+  extracted_pdfs_2020 <- list()
+  
+  for (pdffile in f20){ 
+    pdf_text <- pdf_text(pdffile)
+    extracted_pdfs_2020[[pdffile]] <- pdf_text
+  }
+  
   setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\stripe_data\\2021_fall")
   f21_1 <- list.files(pattern = "pdf$")
   
+  extracted_pdfs_2021_1 <- list()
+  
+  for (pdffile in f21_1){ 
+    pdf_text <- pdf_text(pdffile)
+    extracted_pdfs_2021_1[[pdffile]] <- pdf_text
+  }
+  
   setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\stripe_data\\2021_spring")
   f21_2 <- list.files(pattern = "pdf$")
+ 
+  extracted_pdfs_2021_2 <- list()
+  
+    for (pdffile in f21_2){ 
+    pdf_text <- pdf_text(pdffile)
+    extracted_pdfs_2021_2[[pdffile]] <- pdf_text
+  }
   
   setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\stripe_data\\2022_fall")
   f22_2 <- list.files(pattern = "pdf$") # create a vector of PDF file names - 2022 fall only
+  
+  extracted_pdfs_2022_2 <- list()
+  
+  for (pdffile in f22_2){ 
+    pdf_text <- pdf_text(pdffile)
+    extracted_pdfs_2022_2[[pdffile]] <- pdf_text
+  }
   # repeat for spring22/summer23
   setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\stripe_data\\2022_spring")
   f22_1 <- list.files(pattern = "pdf$")
   
+  extracted_pdfs_2022_1 <- list()
+  
+  for (pdffile in f22_1){ 
+    pdf_text <- pdf_text(pdffile)
+    extracted_pdfs_2022_1[[pdffile]] <- pdf_text
+  }
+  
   setwd("C:\\Users\\SAGGESE\\Documents\\GitHub\\amc_ccs\\data\\stripe_data\\2023_summer")
   f23 <- list.files(pattern = "pdf$")
   
+  extracted_pdfs_2023 <- list()
+  
+  for (pdffile in f23){ 
+    pdf_text <- pdf_text(pdffile)
+    extracted_pdfs_2023[[pdffile]] <- pdf_text
+  }
 
-# extract PDF information
+# Extract list of firm names from the PDF information
 PDE_analyzer_i()
 PDE_reader_i()
   
-#STEP x: Extract patent data (for application years: )
+#STEP 2: Extract patent data by text
+# create a separate set of data with the patent information and then merge with the existing list of firms 
 
-  
+# NOTE: 2020 data DOES NOT CONTAIN ANY SELF DISCLOSED PATENT DATA 
+# start with 2021 - we're looking for this phrasing: "d. If any, please link to your patents, pending or granted, that are available publicly"
+
+
+# Display sections containing 'patent' in each text
+print(sections_with_patent)
 
 # step X: export firm-level data set (eventually we will want to push them all into the same dataframe)
 ## don't forget to set the WD to the output folder 
