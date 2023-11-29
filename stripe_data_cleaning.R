@@ -9,6 +9,8 @@ library(survival)
 library(ggplot2)
 library(ggpubr)
 
+
+# Read in data
 stripedf <- read_excel("C:/Users/SAGGESE/Documents/GitHub/amc_ccs/data/stripe_data/cleaned_outputs/manual-aggregated-firmlist.xlsx", 
                        col_types = c("text", "numeric", "numeric", 
                                      "numeric", "numeric", "text", "text", 
@@ -19,23 +21,37 @@ stripedf <- read_excel("C:/Users/SAGGESE/Documents/GitHub/amc_ccs/data/stripe_da
                                      "numeric", "numeric", "numeric", 
                                      "numeric", "numeric", "numeric", 
                                      "numeric"))
-
+# quick cleaning
+stripedf$price <- as.numeric(as.character(stripedf$price))
 #change awarded to factor var for regression
-stripedf[,'awarded'] <- as.factor(stripedf[,'awarded']) 
+stripedf$awarded_factor <- as.factor(stripedf$awarded) 
+
+
+
+
+
+
+########### REGRESSION ANALYSIS: FIRM CHARACTERISTICS ON WINNING/LOSING ####################
+# Step 1: Early analysis 
 
 # test logit regressions 
-no_control <- glm(formula = awarded ~ price, data = stripedf, family = binomial(link="logit"))
+no_control <- glm(formula = awarded_factor ~ price, data = stripedf, family = binomial(link="logit"))
 summary(no_control) # no impact of price
 
-stripedf$realised_cost_decrease <- (stripedf$current_cost_per_tonne-stripedf$price) # create var for difference in cost
+stripedf$realised_cost_decrease <- (stripedf$current_cost_per_tonne-stripedf$price)*(-1) # create var for difference in cost
 
-diff_realised_price <- glm(formula = awarded ~ (realised_cost_decrease) + year, data = stripedf, family = binomial(link="logit"))
+diff_realised_price <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year, data = stripedf, family = binomial(link="logit"))
 summary(diff_realised_price)
 
-diff_2 <- glm(formula = awarded ~ (realised_cost_decrease) + year + offer_quantity, data = stripedf, family = binomial(link="logit"))
+
+# consider 
+diff_2 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year + offer_quantity, data = stripedf, family = binomial(link="logit"))
 summary(diff_2)
 
-long_reg <- glm(formula = awarded ~ price + offer_quantity + price*offer_quantity + year, data = stripedf, family = binomial(link="logit"))
+diff_3 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year + stripedf$`lifetime mtco2e`, data = stripedf, family = binomial(link="logit"))
+summary(diff_3)
+
+long_reg <- glm(formula = awarded_factor ~ price + offer_quantity + price*offer_quantity + year, data = stripedf, family = binomial(link="logit"))
 summary(long_reg)
 
 
@@ -70,7 +86,10 @@ sum_2 <- stripedf %>% group_by(year) %>%
 summary_join <- full_join(tot_award_sum, tot_losses_sum)
 
 
-# ggplot 
+
+########### SUMMARY STATISTICS OF GIVEN DATA ####################
+# Step 1: plot price and quantity
+
 #ggsummarystats(stripedf, x="price", y = "offer_quantity", color="awarded")
 
 plotdata <- stripedf %>% filter(price<1000000) %>% filter(offer_quantity<10000000)
