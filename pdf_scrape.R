@@ -82,6 +82,7 @@ library(PDE)
     extracted_pdfs_2023[[pdffile]] <- pdf_text
   }
 
+  
 # Extract list of firm names from the PDF information
 PDE_analyzer_i()
 PDE_reader_i()

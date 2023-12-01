@@ -29,8 +29,6 @@ stripedf$awarded_factor <- as.factor(stripedf$awarded)
 
 
 
-
-
 ########### REGRESSION ANALYSIS: FIRM CHARACTERISTICS ON WINNING/LOSING ####################
 # Step 1: Early analysis 
 
