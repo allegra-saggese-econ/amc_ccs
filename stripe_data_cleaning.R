@@ -107,9 +107,19 @@ ggplot(award_onlydf, aes(x = year, y = price)) + geom_point()
 ggplot(award_onlydf, aes(x = year, y = offer_quantity)) + geom_point()
 
 #make awarded numeric again
-stripedf[,'awarded'] <- as.numeric(stripedf[,'awarded']) 
+stripedf$awardednum <- as.numeric(stripedf$awarded) 
 
 sum_awarded <- stripedf %>% group_by(awarded) %>% 
   summarise(across(price:offer_quantity, .f = list(sum = sum, mean = mean, max = max, sd = sd), na.rm = TRUE))
+
+
+#### READ IN GOOGLE PATENT DATA ############
+
+gpatent_data <-  read_csv("data/stripe_data/cleaned_outputs/google_patent_data_manual_CSV.csv", 
+                          col_types = cols(file_date = col_date(format = "%d/%m/%Y")))
+
+full_df <- merge(stripedf, gpatent_data, by=c("applicant_name", "year", "quarter"))
+
+full_df_sum <- 
 
 

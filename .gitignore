@@ -6,6 +6,7 @@
 data/stripe_data
 data/microsoft_2022_23
 data/PATSTAT
+data/google_patents
 
 # Session Data files
 .RData
