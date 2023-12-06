@@ -2,6 +2,8 @@
 library(readr)
 library(readxl)
 library(plm)
+library(stats)
+library(lmtest)
 library(tidyr)
 library(tidyverse)
 library(dplyr)
@@ -53,7 +55,7 @@ long_reg <- glm(formula = awarded_factor ~ price + offer_quantity + price*offer_
 summary(long_reg)
 
 
-# summary statistics
+# summary statisticsa
 sum_1 <- stripedf %>% group_by(year) %>% 
   summarise(total_count=n(),.groups='drop') %>%
   as.data.frame()
@@ -120,6 +122,39 @@ gpatent_data <-  read_csv("data/stripe_data/cleaned_outputs/google_patent_data_m
 
 full_df <- merge(stripedf, gpatent_data, by=c("applicant_name", "year", "quarter"))
 
-full_df_sum <- 
+full_df_sum <- full_df %>% group_by(applicant_name, year, quarter) %>%
+  mutate(sum_patents = n()) %>%
+  arrange(file_date) 
+
+post_prize_patent <- full_df_sum %>%
+  summarise(count = sum(as.integer(format(file_date, "%Y")) > year, na.rm = TRUE))
+
+full_df_sum <- full_df_sum %>% ungroup()
+
+df_regtest <- merge(full_df_sum, post_prize_patent, by = c("applicant_name", "year", "quarter")) %>%
+  rename(post_app_patents = "count") %>% distinct(applicant_name, year, quarter, .keep_all = TRUE) %>%
+  arrange(applicant_name, year) %>% ungroup()
+  
+  
+############## reg on patent output
+
+patent_outcome <- plm(post_app_patents ~ awarded_factor + year, data = df_regtest, index=c("applicant_name", "year", "quarter"))
+
+patent_outcome_1 <- glm(post_app_patents ~ awarded_factor + year, data = df_regtest)
+
+patent_outcome_2 <- lm(post_app_patents ~ awarded_factor + year, data = df_regtest)
+
+patent_outcome_3 <- lm(post_app_patents ~ awarded_factor + year, data = df_regtest)
+
+# some results showing when you control for previous patents
+patent_outcome_4 <- lm(post_app_patents ~ awarded_factor + year + (sum_patents - post_app_patents), data = df_regtest)
+
+patent_outcome_5 <- lm(post_app_patents ~ awarded_factor + year + (sum_patents - post_app_patents) + offer_quantity, data = df_regtest)
+
+# not seeing anything here 
+patent_outcome_6 <- lm(post_app_patents ~ awarded_factor + year + (sum_patents - post_app_patents) + offer_quantity + price, data = df_regtest)
+patent_outcome_7 <- lm(post_app_patents ~ awarded_factor + year + df_regtest$'lifetime mtco2e' + realised_cost_decrease, data = df_regtest)
 
 
+# running the opposite- direction --- no effect
+award_outcome <- glm(awarded_factor ~ (sum_patents - post_app_patents), data = df_regtest, family = binomial(link="logit"))
