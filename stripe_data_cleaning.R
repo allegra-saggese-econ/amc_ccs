@@ -134,7 +134,21 @@ full_df_sum <- full_df_sum %>% ungroup()
 df_regtest <- merge(full_df_sum, post_prize_patent, by = c("applicant_name", "year", "quarter")) %>%
   rename(post_app_patents = "count") %>% distinct(applicant_name, year, quarter, .keep_all = TRUE) %>%
   arrange(applicant_name, year) %>% ungroup()
-  
+
+# fill in missing data
+df_regtest$year <- as.numeric(format(df_regtest$file_date, "%Y"))
+# convert quarters to month - this way we can better estimate pre- and post-award patents
+
+
+any_na <- any(is.na(df_regtest$sum_patents))
+any_na1 <- any(is.na(df_regtest$post_app_patents))
+
+# Output the result
+if (any_na1) {
+  cat("The column contains NA values.")
+} else {
+  cat("The column does not contain NA values.")
+}
   
 ############## reg on patent output
 
@@ -158,3 +172,64 @@ patent_outcome_7 <- lm(post_app_patents ~ awarded_factor + year + df_regtest$'li
 
 # running the opposite- direction --- no effect
 award_outcome <- glm(awarded_factor ~ (sum_patents - post_app_patents), data = df_regtest, family = binomial(link="logit"))
+
+
+
+####################### SUMMARY STATISTICS AGAIN ########################
+# plot the variables by award/not award
+
+# summary stat on some of the variables --- to functionalize
+summary(df_regtest$price)
+mean_val <- mean(df_regtest$price, na.rm=TRUE)
+sd_val <- sd(df_regtest$price, na.rm=TRUE)
+
+filtered_data <- df_regtest %>%
+  filter(price <= mean_val + 2 * sd_val)
+
+plot(density(filtered_data$price), main = "Density Plot without Outliers", xlab = "Offer Price for CO2 tonne")
+# compare with out outliers to the one with -- you can see we get more information
+boxplot(df_regtest$price, col = "lightgreen", main = "Boxplot of Variable")
+hist(df_regtest$price, col = "skyblue", main = "Histogram of Variable")
+
+variable_plots <- function(var, list) {
+  
+}
+
+list_cols <- colnames(df_regtest)
+num_cols <- df_regtest %>% select_if(is.numeric)
+num_cols <- colnames(num_cols)
+looplist <- c("capex", "opex", "lifetime mtco2e", "gross project emissions", "offer_quantity", "realised_cost_decrease", "sum_patents", "post_app_patents")
+plot_list = list()
+
+# loop through the list of numeric values to see outcomes
+for (x in looplist) {
+  summary(df_regtest[[x]])
+  mean_val <- mean(df_regtest[[x]], na.rm=TRUE)
+  sd_val <- sd(df_regtest[[x]], na.rm=TRUE)
+
+  filtereddf<- df_regtest %>%
+    filter(price <= mean_val + 2 * sd_val)
+  
+  plot <- plot(density(filtereddf[[x]]), main = "Density Plot without Outliers", xlab = "Variable")
+  plot_list[[x]] <- plot 
+}
+
+
+ggplot(df_regtest, aes(x = offer_quantity, y = price, color = awarded_factor)) +
+  geom_point() +
+  labs(x = "X-axis Label", y = "Y-axis Label", color = "Awarded") +
+  scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded"))
+
+
+ggplot(df_regtest, aes(x = current_cost_per_tonne, y = price, color = awarded_factor)) +
+  geom_point() +
+  labs(x = "X-axis Label", y = "Y-axis Label", color = "Awarded") +
+  scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded"))
+
+# Plot 1: Patent count vs. Awarded/not awarded
+
+ggplot(df_regtest, aes(x = current_cost_per_tonne, y = price, color = awarded_factor)) +
+  geom_point() +
+  labs(x = "X-axis Label", y = "Y-axis Label", color = "Awarded") +
+  scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded"))
+
