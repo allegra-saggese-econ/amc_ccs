@@ -13,45 +13,56 @@ library(ggpubr)
 
 
 # Read in data
-stripedf <- read_excel("C:/Users/SAGGESE/Documents/GitHub/amc_ccs/data/stripe_data/cleaned_outputs/manual-aggregated-firmlist.xlsx", 
+stripedf <- read_excel("data/stripe_data/cleaned_outputs/manual-aggregated-firmlist.xlsx", 
                        col_types = c("text", "numeric", "numeric", 
-                                     "numeric", "numeric", "text", "text", 
-                                     "numeric", "numeric", "numeric", 
-                                     "numeric", "numeric", "numeric", 
-                                     "numeric", "numeric", "numeric", 
-                                     "text", "numeric", "numeric", "numeric", 
-                                     "numeric", "numeric", "numeric", 
-                                     "numeric", "numeric", "numeric", 
-                                     "numeric"))
-# quick cleaning
-stripedf$price <- as.numeric(as.character(stripedf$price))
-#change awarded to factor var for regression
+                                                             "numeric", "numeric", "text", "text", 
+                                                             "skip", "skip", "numeric", "skip", 
+                                                             "skip", "numeric", "numeric", "skip", 
+                                                             "skip", "skip", "numeric", "numeric", 
+                                                             "numeric", "numeric", "numeric", 
+                                                             "numeric", "numeric", "numeric", 
+                                                             "numeric", "numeric", "numeric", 
+                                                             "numeric", "numeric"))
+#new cols
 stripedf$awarded_factor <- as.factor(stripedf$awarded) 
-
-
+stripedf$realised_cost_decrease <- (stripedf$current_cost_per_tonne-stripedf$price)*(-1)
+stripedf <- stripedf %>%
+  mutate(price_contract_diff = case_when(awarded==1 & R_and_D_offer==0 ~ price-contractprice,
+                                         awarded==0 ~ 0),
+         quantity_contract_diff = case_when(awarded==1 & R_and_D_offer==0 ~ offer_quantity-contract_quantity,
+                                            awarded==0 ~ 0)
+  )
 
 
 ########### REGRESSION ANALYSIS: FIRM CHARACTERISTICS ON WINNING/LOSING ####################
 # Step 1: Early analysis 
 
 # test logit regressions 
-no_control <- glm(formula = awarded_factor ~ price, data = stripedf, family = binomial(link="logit"))
-summary(no_control) # no impact of price
-
-stripedf$realised_cost_decrease <- (stripedf$current_cost_per_tonne-stripedf$price)*(-1) # create var for difference in cost
+no_control <- glm(formula = awarded_factor ~ price, data = stripedf, 
+                  family = binomial(link="logit"))
+# price is not a significant determinant of choice of award/not awarded
+summary(no_control) 
 
 diff_realised_price <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year, data = stripedf, family = binomial(link="logit"))
+
 summary(diff_realised_price)
 
 
 # consider 
-diff_2 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year + offer_quantity, data = stripedf, family = binomial(link="logit"))
+diff_2 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year 
+              + offer_quantity, data = stripedf, family = binomial(link="logit"))
 summary(diff_2)
 
-diff_3 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year + stripedf$`lifetime mtco2e`, data = stripedf, family = binomial(link="logit"))
+diff_3 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year 
+              + stripedf$`lifetime mtco2e`, data = stripedf, 
+              family = binomial(link="logit"))
+
 summary(diff_3)
 
-long_reg <- glm(formula = awarded_factor ~ price + offer_quantity + price*offer_quantity + year, data = stripedf, family = binomial(link="logit"))
+long_reg <- glm(formula = awarded_factor ~ price + offer_quantity 
+                + price*offer_quantity + year, data = stripedf, 
+                family = binomial(link="logit"))
+
 summary(long_reg)
 
 
