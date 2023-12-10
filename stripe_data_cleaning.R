@@ -10,6 +10,7 @@ library(dplyr)
 library(survival)
 library(ggplot2)
 library(ggpubr)
+library(zoo)
 
 
 # Read in data
@@ -33,6 +34,16 @@ stripedf <- stripedf %>%
                                             awarded==0 ~ 0)
   )
 
+# subset the df for awarded firms only - to use later 
+stripedf$awardednum <- as.numeric(stripedf$awarded)
+award_onlydf <- stripedf %>% 
+  filter(awarded>0)
+
+# filtered df - proposals only
+prop_onlydf <- stripedf %>% filter(awarded==0)
+
+
+
 
 ########### REGRESSION ANALYSIS: FIRM CHARACTERISTICS ON WINNING/LOSING ####################
 # Step 1: Early analysis 
@@ -43,39 +54,34 @@ no_control <- glm(formula = awarded_factor ~ price, data = stripedf,
 # price is not a significant determinant of choice of award/not awarded
 summary(no_control) 
 
-diff_realised_price <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year, data = stripedf, family = binomial(link="logit"))
 
-summary(diff_realised_price)
+diff_realised_price <- glm(formula = awarded_factor ~ (realised_cost_decrease) + 
+                             year, data = stripedf, family = binomial(link="logit"))
 
-
-# consider 
 diff_2 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year 
               + offer_quantity, data = stripedf, family = binomial(link="logit"))
-summary(diff_2)
 
 diff_3 <- glm(formula = awarded_factor ~ (realised_cost_decrease) + year 
               + stripedf$`lifetime mtco2e`, data = stripedf, 
               family = binomial(link="logit"))
-
+# realised cost decrease has no impact on award choice
+summary(diff_realised_price)
+summary(diff_2)
 summary(diff_3)
+
 
 long_reg <- glm(formula = awarded_factor ~ price + offer_quantity 
                 + price*offer_quantity + year, data = stripedf, 
                 family = binomial(link="logit"))
-
 summary(long_reg)
 
 
-# summary statisticsa
-sum_1 <- stripedf %>% group_by(year) %>% 
+
+
+# summary statistics
+sum_per_yr <- stripedf %>% group_by(year) %>% 
   summarise(total_count=n(),.groups='drop') %>%
   as.data.frame()
-
-stripedf$awardednum <- as.numeric(stripedf$awarded)
-award_onlydf <- stripedf %>% 
-  filter(awarded>0)
-prop_onlydf <- stripedf %>% filter(awarded==0)
-
 
 sum_award_group <- stripedf %>% filter(stripedf$awarded>0) %>% group_by(year) %>% 
   summarise(total_count=n(),.groups='drop') %>%
@@ -101,7 +107,6 @@ summary_join <- full_join(tot_award_sum, tot_losses_sum)
 ########### SUMMARY STATISTICS OF GIVEN DATA ####################
 # Step 1: plot price and quantity
 
-#ggsummarystats(stripedf, x="price", y = "offer_quantity", color="awarded")
 
 plotdata <- stripedf %>% filter(price<1000000) %>% filter(offer_quantity<10000000)
 fine_tune <- stripedf %>% filter(price<10000) %>% filter(offer_quantity<100000)
@@ -119,11 +124,15 @@ ggplot(fine_tune, aes(x = fine_tune$price, y = fine_tune$offer_quantity)) + geom
 ggplot(award_onlydf, aes(x = year, y = price)) + geom_point()
 ggplot(award_onlydf, aes(x = year, y = offer_quantity)) + geom_point()
 
+
+
 #make awarded numeric again
 stripedf$awardednum <- as.numeric(stripedf$awarded) 
-
+# summary table for the numeric cols
 sum_awarded <- stripedf %>% group_by(awarded) %>% 
   summarise(across(price:offer_quantity, .f = list(sum = sum, mean = mean, max = max, sd = sd), na.rm = TRUE))
+
+
 
 
 #### READ IN GOOGLE PATENT DATA ############
@@ -132,65 +141,127 @@ gpatent_data <-  read_csv("data/stripe_data/cleaned_outputs/google_patent_data_m
                           col_types = cols(file_date = col_date(format = "%d/%m/%Y")))
 
 full_df <- merge(stripedf, gpatent_data, by=c("applicant_name", "year", "quarter"))
+# QA - rows dropped is empty so no issues
+rows_dropped <- anti_join(gpatent_data, full_df, by=c("applicant_name", "year", "quarter"))
+
 
 full_df_sum <- full_df %>% group_by(applicant_name, year, quarter) %>%
-  mutate(sum_patents = n()) %>%
+  mutate(sum_patents = sum(!is.na(file_date))) %>%
   arrange(file_date) 
+
+qa_no_patents <- full_df_sum %>% filter(sum_patents==0) %>% summarise(n()) # 98 firms without patents 
+rm(qa_no_patents)
+# 419 patents, shared by a total of 69 applicants (40% of applicants have patents in Google Patent data)
 
 post_prize_patent <- full_df_sum %>%
   summarise(count = sum(as.integer(format(file_date, "%Y")) > year, na.rm = TRUE))
 
 full_df_sum <- full_df_sum %>% ungroup()
+# fill in missing data
+full_df_sum$file_year <- as.numeric(format(full_df_sum$file_date, "%Y"))
 
 df_regtest <- merge(full_df_sum, post_prize_patent, by = c("applicant_name", "year", "quarter")) %>%
   rename(post_app_patents = "count") %>% distinct(applicant_name, year, quarter, .keep_all = TRUE) %>%
   arrange(applicant_name, year) %>% ungroup()
 
-# fill in missing data
-df_regtest$year <- as.numeric(format(df_regtest$file_date, "%Y"))
-# convert quarters to month - this way we can better estimate pre- and post-award patents
 
-
-any_na <- any(is.na(df_regtest$sum_patents))
-any_na1 <- any(is.na(df_regtest$post_app_patents))
+########## qa of df regtest (dataframe to use for regressions)
+any_na <- any(is.na(df_regtest$sum_patents)) # has no missing values (0-77)
+any_na1 <- any(is.na(df_regtest$decision_date)) # has missing values
 
 # Output the result
-if (any_na1) {
+if (any_na) {
   cat("The column contains NA values.")
 } else {
   cat("The column does not contain NA values.")
 }
   
-############## reg on patent output
+############## reg on patent output ##########################
+patent_outcome <- plm(post_app_patents ~ awarded_factor, 
+                      data = df_regtest, index=c("applicant_name", "year", "quarter"), model = "within")
+summary(patent_outcome)
+# unbalanced panel --- to revisit
 
-patent_outcome <- plm(post_app_patents ~ awarded_factor + year, data = df_regtest, index=c("applicant_name", "year", "quarter"))
+patent_outcome_1 <- glm(post_app_patents ~ awarded_factor + year, 
+                        data = df_regtest) # want to use year fixed effects - not control for year (two cycles within this)
 
-patent_outcome_1 <- glm(post_app_patents ~ awarded_factor + year, data = df_regtest)
+patent_outcome_2 <- lm(post_app_patents ~ awarded_factor + year, 
+                       data = df_regtest) # small positive sig
 
-patent_outcome_2 <- lm(post_app_patents ~ awarded_factor + year, data = df_regtest)
+patent_outcome_3 <- lm(post_app_patents ~ awarded_factor + year, 
+                       data = df_regtest) # small positive sig
 
-patent_outcome_3 <- lm(post_app_patents ~ awarded_factor + year, data = df_regtest)
+# some results showing when you control for previous patents --- there is signficance
+patent_outcome_4 <- lm(post_app_patents ~ awarded_factor + year + 
+                         (sum_patents - post_app_patents), data = df_regtest)
 
-# some results showing when you control for previous patents
-patent_outcome_4 <- lm(post_app_patents ~ awarded_factor + year + (sum_patents - post_app_patents), data = df_regtest)
+# create new factor variables for regression
+df_regtest$year_factor <- as.factor(df_regtest$year)
+df_regtest$repeat_factor <- as.factor(df_regtest$previous_application_stripe)
+entity_counts <- table(df_regtest$applicant_name)
+multiple_year_entities <- names(entity_counts[entity_counts > 1])
+filtered_data <- df_regtest[df_regtest$applicant_name %in% multiple_year_entities, ] # 13 firms that applied more than once
+balanced_df <- df_regtest[!(df_regtest$applicant_name %in% multiple_year_entities), ]
+# issues with this reg model ---- to revisit
+patent_outcome_4a <- plm(post_app_patents ~ awarded_factor + (sum_patents - post_app_patents),
+                         data = balanced_df, index = c("applicant_name", "year_factor"), model="within")
 
-patent_outcome_5 <- lm(post_app_patents ~ awarded_factor + year + (sum_patents - post_app_patents) + offer_quantity, data = df_regtest)
+patent_outcome_5 <- lm(post_app_patents ~ awarded_factor + year_factor + 
+                         (sum_patents - post_app_patents) + offer_quantity, 
+                       data = df_regtest)
+# adding in if they were a repeated applicant 
+patent_outcome_5a <- lm(post_app_patents ~ awarded_factor + year_factor + 
+                         (sum_patents - post_app_patents) + repeat_factor, 
+                       data = df_regtest)
 
-# not seeing anything here 
-patent_outcome_6 <- lm(post_app_patents ~ awarded_factor + year + (sum_patents - post_app_patents) + offer_quantity + price, data = df_regtest)
-patent_outcome_7 <- lm(post_app_patents ~ awarded_factor + year + df_regtest$'lifetime mtco2e' + realised_cost_decrease, data = df_regtest)
-
+atent_outcome_6 <- lm(post_app_patents ~ awarded_factor + year + 
+                         (sum_patents - post_app_patents) + offer_quantity + price, 
+                       data = df_regtest)
+# no relationship here
+patent_outcome_7 <- lm(post_app_patents ~ awarded_factor + year + 
+                         df_regtest$'lifetime mtco2e' + realised_cost_decrease, 
+                       data = df_regtest)
 
 # running the opposite- direction --- no effect
-award_outcome <- glm(awarded_factor ~ (sum_patents - post_app_patents), data = df_regtest, family = binomial(link="logit"))
-
+award_outcome <- glm(awarded_factor ~ (sum_patents - post_app_patents), 
+                     data = df_regtest, 
+                     family = binomial(link="logit"))
 
 
 ####################### SUMMARY STATISTICS AGAIN ########################
 # plot the variables by award/not award
 
 # summary stat on some of the variables --- to functionalize
-summary(df_regtest$price)
+summary(df_regtest$sum_patents)
+mean_val <- mean(df_regtest$sum_patents, na.rm=TRUE)
+sd_val <- sd(df_regtest$sum_patents, na.rm=TRUE)
+
+filtered_data <- df_regtest %>%
+  filter(sum_patents <= mean_val + 2 * sd_val)
+
+plot(density(filtered_data$sum_patents), main = "Density Plot without Outliers", xlab = "Sum of patents by applicants")
+
+summary(df_regtest$contractprice)
+mean_val <- mean(df_regtest$contractprice, na.rm=TRUE)
+sd_val <- sd(df_regtest$contractprice, na.rm=TRUE)
+
+filtered_data <- df_regtest %>%
+  filter(contractprice <= mean_val + 2 * sd_val)
+
+plot(density(filtered_data$contractprice), main = "Density Plot without Outliers", 
+     xlab = "Contract price distribution (per tonne CO2)")
+
+summary(df_regtest$contract_quantity)
+mean_val <- mean(df_regtest$contract_quantity, na.rm=TRUE)
+sd_val <- sd(df_regtest$contract_quantity, na.rm=TRUE)
+
+filtered_data <- df_regtest %>%
+  filter(contract_quantity <= mean_val + 2 * sd_val)
+
+plot(density(filtered_data$contract_quantity), main = "Density Plot without Outliers", 
+     xlab = "Contract quantity distribution (total tonnes)")
+
+
 mean_val <- mean(df_regtest$price, na.rm=TRUE)
 sd_val <- sd(df_regtest$price, na.rm=TRUE)
 
@@ -198,14 +269,15 @@ filtered_data <- df_regtest %>%
   filter(price <= mean_val + 2 * sd_val)
 
 plot(density(filtered_data$price), main = "Density Plot without Outliers", xlab = "Offer Price for CO2 tonne")
+
+
 # compare with out outliers to the one with -- you can see we get more information
 boxplot(df_regtest$price, col = "lightgreen", main = "Boxplot of Variable")
-hist(df_regtest$price, col = "skyblue", main = "Histogram of Variable")
+hist(filtered_data$price, col = "skyblue", main = "Offer Price Histogram", xlab="Price per tonne (no outliers)") 
 
-variable_plots <- function(var, list) {
-  
-}
 
+
+#### to turn the summary density plots into a function --- in progress
 list_cols <- colnames(df_regtest)
 num_cols <- df_regtest %>% select_if(is.numeric)
 num_cols <- colnames(num_cols)
@@ -226,21 +298,140 @@ for (x in looplist) {
 }
 
 
-ggplot(df_regtest, aes(x = offer_quantity, y = price, color = awarded_factor)) +
+ggplot(filtered_data, aes(x = offer_quantity, y = price, color = awarded_factor)) +
   geom_point() +
-  labs(x = "X-axis Label", y = "Y-axis Label", color = "Awarded") +
+  labs(x = "Offer Quantity", y = "Offer price", color = "Awarded") +
   scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded"))
 
+filtered_data_sub1 <- subset(filtered_data, awarded==1)
+filtered_data_sub2 <- subset(filtered_data, awarded==0)
 
-ggplot(df_regtest, aes(x = current_cost_per_tonne, y = price, color = awarded_factor)) +
+ggplot(filtered_data, aes(x = current_cost_per_tonne, y = price, color = awarded_factor)) +
   geom_point() +
-  labs(x = "X-axis Label", y = "Y-axis Label", color = "Awarded") +
-  scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded"))
+  labs(x = "Current cost per tonne", y = "Offer price", color = "Awarded") +
+  scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded")) + 
+  geom_smooth(method = "lm", se=FALSE)
 
-# Plot 1: Patent count vs. Awarded/not awarded
-
-ggplot(df_regtest, aes(x = current_cost_per_tonne, y = price, color = awarded_factor)) +
+# Plot 1: Contracted price vs. contracted quantity by awarded applicants (previous, novel applications)
+ggplot(filtered_data, aes(x = contract_quantity, y = contractprice, color=as.factor(previous_application_stripe))) +
   geom_point() +
-  labs(x = "X-axis Label", y = "Y-axis Label", color = "Awarded") +
-  scale_color_discrete(name = "Awarded", labels = c("Not Awarded", "Awarded"))
+  labs(x = "Contract quantity (tonnes)", y = "Contract price ($ per tonne)", color="Previous Applicant?") +
+  scale_color_discrete(name = "Previous application", labels = c("No", "Yes"))
+
+# Plot 2: Contracted price vs. contracted quantity by count of post-application patent
+ggplot(filtered_data, aes(x = contract_quantity, y = contractprice, color=post_app_patents)) +
+  geom_point() +
+  labs(x = "Contract quantity (tonnes)", y = "Contract price ($ per tonne)", color="Patent count (after award)") 
+
+# Plot 3: 
+colstosum <- c("year", "quarter", "awarded", "lifetime mtco2e", "contractprice", "current_cost_per_tonne", "gross project emissions", "offer_quantity",
+               "contract_quantity", "realised_cost_decrease", "price_contract_diff", "quantity_contract_diff", "sum_patents",
+               "post_app_patents")
+new_names <- c("year", "quarter", "awarded", "lifetimeabate", "contractprice", "estcost", "totem", "offerq",
+                            "contractq", "costdecrease", "pdiff", "qdiff", "totpatents",
+                            "postpatents")
+
+tot_award_sum_2 <- filtered_data_sub1 %>% select(all_of(colstosum)) %>% 
+  rename_with(~ new_names, everything()) %>%
+  group_by(year, quarter) %>%
+  summarise(across(everything(), list(mean = mean, median = median, sd = sd), na.rm=TRUE))
+
+awarded_sum_long <- tot_award_sum_2 %>%
+  pivot_longer(-c(year, quarter), names_to = c(".value", "stat"), names_sep = "_") 
+
+############ WANT TO MAKE MORE GRAPHS SHOWING SUMMARY STATISTICS IN FACET GRAPHS! 
+
+#setwd("C:/Users/SAGGESE/Documents/GitHub/amc_ccs/clean_outputs")
+#write.csv(awarded_sum_long, "summary_stats.csv")
+#write.csv(df_regtest, "firm_level_data.csv")
+
+
+
+########################## REORGANIZE FIRM LEVEL DATA FOR REGRESSION (DID) ################################
+
+# make date columns
+current_date <- Sys.Date()
+dates_col <- seq(as.Date("2020-01-01"), current_date, by = "month")
+dates_col_2 <- as.yearmon(dates_col)
+
+full_df_sum$treat_date <- as.Date(full_df_sum$effective_date, format = "%d/%m/%Y")
+
+# make decision date == effective date for each group
+df_did_format <- full_df_sum %>% group_by(year, quarter) %>% 
+  mutate(treat_date = max(treat_date, na.rm=TRUE)) %>%
+  ungroup() %>%
+  select(-c("assignee", "classification_6", "classification_5"))
+
+
+df_did_format$m_y <- paste(year(df_did_format$file_date), month(df_did_format$file_date), sep = "-")
+df_did_format$m_y <- as.yearmon(df_did_format$m_y)
+df_did_format$key = paste0(df_did_format$applicant_name, df_did_format$year, df_did_format$quarter)
+  
+# take unique firms and create firms for each month in the project period
+firmsonly <- full_df_sum %>% 
+  mutate(key = paste0(applicant_name, year, quarter)) %>%
+  distinct(key, .keep_all = TRUE)
+firm_month_interval <- expand.grid(key = firmsonly$key, m_y = dates_col_2)
+#firm_month_interval$m_y <- paste(year(firm_month_interval$date), month(firm_month_interval$date), sep = "-")
+
+# before cleaning - need to QA the treat_date column
+summary(df_did_format$treat_date)
+qadf <- df_did_format %>% filter(is.na(treat_date))
+qadf2 <- df_did_format %>% filter(is.na(m_y))# issue is I kept the patent data of non-patented firms
+
+joined_panel_2 <- df_did_format %>% group_by(key, m_y) %>%
+  mutate(patents_in_period = sum(!is.na(file_date))) %>% # create col for the number of patents in each period
+  ungroup() %>% filter(!sum_patents ==0) # drop where there are no patents
+
+qadf3 <- joined_panel_2 %>% filter(is.na(m_y))
+rm(qadf3)
+
+# drop the duplicate patents (i.e. filed in two locations)
+joined_panel_3 <- joined_panel_2 %>% filter(!is.na(patents_in_period)) %>%
+  group_by(key, m_y, patent_name) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  group_by(key, m_y) %>%
+  mutate(unique_patents_in_period = n())
+
+jp2 <- joined_panel_2 %>% select(c(patents_in_period, key, m_y, file_date, 
+                                   file_year, patent_name, application_number,
+                                   inventor_1, quarter, year, treat_date))
+
+jp3 <- joined_panel_3 %>% select(c(key, m_y, patent_name, unique_patents_in_period))
+
+# summarise patent level data (count of total, count of unique)
+jp_to_add <- merge(jp2, jp3, by=c("key", "m_y", "patent_name")) %>% filter(file_date > as.Date("2020-05-01"))
+jp_to_add_unique <- jp_to_add %>% group_by(key, m_y) %>% #may need to check the texts from google patent if some are too similar 
+  slice(1)
+#remerge patent data back 
+did_merged <- left_join(firm_month_interval, jp_to_add_unique, by = c("m_y", "key")) %>%
+  arrange("m_y", "key")
+
+# take all the pre 2020 and summarise them as pre 2020 and have it as one period -- attach afterwards?
+pre_period_patents <- merge(jp2, jp3, by=c("key", "m_y", "patent_name")) %>% 
+  filter(file_date <= as.Date("2020-05-01")) # 194 pre-2020 patents for the firms that need to be added in as 'pre' period patents
+pre_period_unique <- pre_period_patents %>% group_by(key, m_y) %>% 
+  slice(1) %>%
+  ungroup %>%
+  group_by(key) %>%
+  mutate(pre_period_patents_sum = n()) # new column for all the pre-treatment timeframe patents
+
+############ merge back in firm-level data to did_merged
+df_regtest$key = paste0(df_regtest$applicant_name, df_regtest$year, df_regtest$quarter)
+clean_firm_level <- df_regtest %>% 
+  select(-c(applicant_name, effective_date, decision_date, patent_name, patent_region,
+            patent_no, patent_no_list, application_number, file_date, assignee, abandoned, citations,
+            classification_1, classification_2, classification_3, classification_4, classification_5,
+            classification_6, classification_7, classification_8, inventor_1, post_app_patents, file_year,
+            quarter, year))
+# merge firm level data back in
+full_did_df <- did_merged %>% select(-c(patent_name, application_number, inventor_1)) %>%
+  left_join(clean_firm_level, by="key")
+
+
+
+
+
+
 
