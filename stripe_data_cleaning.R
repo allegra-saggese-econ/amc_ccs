@@ -79,11 +79,11 @@ summary(long_reg)
 
 
 # summary statistics
-sum_per_yr <- stripedf %>% group_by(year) %>% 
+sum_per_yr <- stripedf %>% group_by(year, quarter) %>% 
   summarise(total_count=n(),.groups='drop') %>%
   as.data.frame()
 
-sum_award_group <- stripedf %>% filter(stripedf$awarded>0) %>% group_by(year) %>% 
+sum_award_group <- stripedf %>% filter(stripedf$awarded>0) %>% group_by(year, quarter) %>% 
   summarise(total_count=n(),.groups='drop') %>%
   as.data.frame()
 
@@ -95,7 +95,7 @@ tot_losses_sum <- stripedf %>% filter(stripedf$awarded==0) %>% group_by(year) %>
   summarise(across(price:offer_quantity, .f = list(sum = sum, mean = mean, max = max, sd = sd), na.rm = TRUE)) %>%
   mutate(awarded <- "0")
 
-sum_2 <- stripedf %>% group_by(year) %>% 
+sum_2 <- stripedf %>% group_by(year, quarter) %>% 
   summarise(across(price:offer_quantity, .f = list(sum = sum, mean = mean, max = max, sd = sd), na.rm = TRUE))
 
 
@@ -164,7 +164,7 @@ df_regtest <- merge(full_df_sum, post_prize_patent, by = c("applicant_name", "ye
   rename(post_app_patents = "count") %>% distinct(applicant_name, year, quarter, .keep_all = TRUE) %>%
   arrange(applicant_name, year) %>% ungroup()
 
-
+wopatents <- df_regtest %>% filter(sum_patents==0)
 ########## qa of df regtest (dataframe to use for regressions)
 any_na <- any(is.na(df_regtest$sum_patents)) # has no missing values (0-77)
 any_na1 <- any(is.na(df_regtest$decision_date)) # has missing values
@@ -408,6 +408,9 @@ jp_to_add_unique <- jp_to_add %>% group_by(key, m_y) %>% #may need to check the 
 did_merged <- left_join(firm_month_interval, jp_to_add_unique, by = c("m_y", "key")) %>%
   arrange("m_y", "key")
 
+qa_count <- jp_to_add_unique %>% ungroup() %>% group_by(key) %>%
+  slice(1)
+
 # take all the pre 2020 and summarise them as pre 2020 and have it as one period -- attach afterwards?
 pre_period_patents <- merge(jp2, jp3, by=c("key", "m_y", "patent_name")) %>% 
   filter(file_date <= as.Date("2020-05-01")) # 194 pre-2020 patents for the firms that need to be added in as 'pre' period patents
@@ -429,9 +432,9 @@ clean_firm_level <- df_regtest %>%
 full_did_df <- did_merged %>% select(-c(patent_name, application_number, inventor_1)) %>%
   left_join(clean_firm_level, by="key")
 
+write.csv(full_df_sum, "patent_level_df.csv")
+write.csv(full_did_df, "did_df.csv")
 
 
-
-
-
+############### REGRESSION ANALYSIS 
 
