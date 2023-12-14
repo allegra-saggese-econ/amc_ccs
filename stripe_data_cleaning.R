@@ -104,7 +104,7 @@ summary_join <- full_join(tot_award_sum, tot_losses_sum)
 
 
 
-########### SUMMARY STATISTICS OF GIVEN DATA ####################
+########### SUMMARY STATISTICS OF STRIPE APPLICANT DATA ####################
 # Step 1: plot price and quantity
 
 
@@ -134,24 +134,24 @@ sum_awarded <- stripedf %>% group_by(awarded) %>%
 
 
 
-
-#### READ IN GOOGLE PATENT DATA ############
+################# READ IN GOOGLE PATENT DATA #######################################
 
 gpatent_data <-  read_csv("data/stripe_data/cleaned_outputs/google_patent_data_manual_CSV.csv", 
                           col_types = cols(file_date = col_date(format = "%d/%m/%Y")))
 
-full_df <- merge(stripedf, gpatent_data, by=c("applicant_name", "year", "quarter"))
-# QA - rows dropped is empty so no issues
-rows_dropped <- anti_join(gpatent_data, full_df, by=c("applicant_name", "year", "quarter"))
+full_df <- merge(gpatent_data, stripedf, by=c("applicant_name", "year", "quarter"))
+# QA - no issue
+rows_dropped <- anti_join(gpatent_data, stripedf, by=c("applicant_name", "year", "quarter"))
+nonmatched <- data.frame(unique(rows_dropped$applicant_name))
 
 
 full_df_sum <- full_df %>% group_by(applicant_name, year, quarter) %>%
   mutate(sum_patents = sum(!is.na(file_date))) %>%
   arrange(file_date) 
 
-qa_no_patents <- full_df_sum %>% filter(sum_patents==0) %>% summarise(n()) # 98 firms without patents 
+qa_no_patents <- full_df_sum %>% filter(sum_patents==0) %>% summarise(n()) # 97 firms without patents 
 rm(qa_no_patents)
-# 419 patents, shared by a total of 69 applicants (40% of applicants have patents in Google Patent data)
+# 419 patents, shared by a total of 70 applicants (40% of applicants have patents in Google Patent data)
 
 post_prize_patent <- full_df_sum %>%
   summarise(count = sum(as.integer(format(file_date, "%Y")) > year, na.rm = TRUE))
@@ -351,18 +351,21 @@ awarded_sum_long <- tot_award_sum_2 %>%
 
 # make date columns
 current_date <- Sys.Date()
-dates_col <- seq(as.Date("2020-01-01"), current_date, by = "month")
+dates_col <- seq(as.Date("2007-01-01"), current_date, by = "month")
 dates_col_2 <- as.yearmon(dates_col)
 
-full_df_sum$treat_date <- as.Date(full_df_sum$effective_date, format = "%d/%m/%Y")
+#create treatment date column 
+full_df_sum <- full_df_sum %>% mutate(treat_date = case_when(
+  (quarter==3 & year == 2023) ~ as.Date("2023-09-01"),
+  (quarter==2 & year == 2021) ~ as.Date("2021-05-17"),
+  (quarter==4 & year == 2021) ~ as.Date("2021-12-05"),
+  (quarter==2 & year == 2022) ~ as.Date("2022-06-30"),
+  (quarter==4 & year == 2022) ~ as.Date("2022-12-15"),
+  (quarter==1 & year == 2020) ~ as.Date("2020-05-18"), 
+  TRUE ~ NA
+)) %>% select(-c("assignee", "classification_6", "classification_5"))
 
-# make decision date == effective date for each group
-df_did_format <- full_df_sum %>% group_by(year, quarter) %>% 
-  mutate(treat_date = max(treat_date, na.rm=TRUE)) %>%
-  ungroup() %>%
-  select(-c("assignee", "classification_6", "classification_5"))
-
-
+df_did_format <- full_df_sum
 df_did_format$m_y <- paste(year(df_did_format$file_date), month(df_did_format$file_date), sep = "-")
 df_did_format$m_y <- as.yearmon(df_did_format$m_y)
 df_did_format$key = paste0(df_did_format$applicant_name, df_did_format$year, df_did_format$quarter)
@@ -411,9 +414,11 @@ did_merged <- left_join(firm_month_interval, jp_to_add_unique, by = c("m_y", "ke
 qa_count <- jp_to_add_unique %>% ungroup() %>% group_by(key) %>%
   slice(1)
 
-# take all the pre 2020 and summarise them as pre 2020 and have it as one period -- attach afterwards?
+# we ignore the pre-period of observation patents
 pre_period_patents <- merge(jp2, jp3, by=c("key", "m_y", "patent_name")) %>% 
-  filter(file_date <= as.Date("2020-05-01")) # 194 pre-2020 patents for the firms that need to be added in as 'pre' period patents
+  filter(file_date <= as.Date("2007-01-01")) # 34 patents pre-observation period
+
+# 30 unique patents in the pre-period
 pre_period_unique <- pre_period_patents %>% group_by(key, m_y) %>% 
   slice(1) %>%
   ungroup %>%
@@ -423,18 +428,50 @@ pre_period_unique <- pre_period_patents %>% group_by(key, m_y) %>%
 ############ merge back in firm-level data to did_merged
 df_regtest$key = paste0(df_regtest$applicant_name, df_regtest$year, df_regtest$quarter)
 clean_firm_level <- df_regtest %>% 
-  select(-c(applicant_name, effective_date, decision_date, patent_name, patent_region,
+  select(-c(applicant_name, patent_name, patent_region,
             patent_no, patent_no_list, application_number, file_date, assignee, abandoned, citations,
             classification_1, classification_2, classification_3, classification_4, classification_5,
             classification_6, classification_7, classification_8, inventor_1, post_app_patents, file_year,
             quarter, year))
+
 # merge firm level data back in
 full_did_df <- did_merged %>% select(-c(patent_name, application_number, inventor_1)) %>%
   left_join(clean_firm_level, by="key")
 
+# write the firm-month data
 write.csv(full_df_sum, "patent_level_df.csv")
 write.csv(full_did_df, "did_df.csv")
 
+############################ LOAD IN THE ORBIS DATA ####################################
+orbis <- read_excel("data/orbis/historical_df_orbis.xlsx", sheet = "Results")
 
-############### REGRESSION ANALYSIS 
+df_filtered <- orbis %>%
+  select(-matches("\\.{3}\\d{2}$")) %>%
+  select(-matches("\\.{3}\\d{3}$"))
+
+matched_cols <- grep("(.*)(.*Year - \\d{1,2})", colnames(df_filtered), value = TRUE)
+prefixes <- gsub("(.*)(.*Year - \\d{1,2})", "\\1", matched_cols)
+unique_prefixes <- unique(prefixes)
+
+orbis_long <- df_filtered %>%
+  pivot_longer(
+    cols = all_of(matched_cols), # consider matched cols with annual ending
+    names_to = "colname",
+    values_to =  "value"
+      ) %>%
+  mutate(prefix = gsub("(.*)(.*Year - \\d{1,2})", "\\1", colname)
+  ) %>%
+  pivot_wider(
+    names_from = prefix,
+    values_from = value,
+    values_fill = list(value = NA)
+  ) 
+
+unnest_orbis <- orbis_long %>% select(-c(colname)) %>%
+  unnest_wider(everything(), names_sep="_")
+
+# export long form orbis
+write.csv(unnest_orbis, "orbis_long.csv", rown.names = FALSE)
+
+
 
