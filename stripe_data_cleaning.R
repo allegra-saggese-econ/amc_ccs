@@ -467,11 +467,13 @@ orbis_long <- df_filtered %>%
     values_fill = list(value = NA)
   ) 
 
-unnest_orbis <- orbis_long %>% select(-c(colname)) %>%
-  unnest_wider(everything(), names_sep="_")
+unnest_orbis <- orbis_long %>% 
+  unnest_wider(everything(), names_sep="_") 
+
+unnest_orbis <- as.data.frame(unnest_orbis)
 
 # export long form orbis
-write.csv(unnest_orbis, "orbis_long.csv", rown.names = FALSE)
+write.csv(unnest_orbis, "orbis_long.csv", row.names = FALSE)
 
 
 
