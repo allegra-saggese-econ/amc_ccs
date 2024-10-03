@@ -26,9 +26,12 @@ Currently three scripts:
 - (3) Stripe data cleaning -- read in manual data set and produce summary statistics on Stripe data         
     - including probit model for determining success of applicant based on limited characteristics
     - includes graphics of differentials between winners/losers in the data 
-- (4) patent data cleaning -- matched data from google patents and PATSTAT -- TBD  
-- (5) Financial data assembly -- TBD 
-- (6) Policies and general projects -- TBD
+- (4) patent_ data cleaning_merge
+- (5) Orbis (financial data) 
+    - this data has been cleaned and matched to firms in R 
+    - this data has then been used to run SDID analysis in Stata
+    (a copy of the STATA code for SDID has been uploaded in orbis_desc_DID_RCONVERTED)
+
 
 ## Next steps
 We will increase clarity of data manipulation in the Scripts- description. 
