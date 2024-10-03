@@ -1,4 +1,10 @@
-# summary statistics on STRIPE data 
+#' Author: [Allegra Saggese]
+#' Purpose: data cleaning of STRIPE data, summary stats and reg analysis , 
+#' include GOOGLE PATENT data (manually collected), and run prelim regression
+## on the stripe/google data on identifying trends in winners 
+#' Last updated: `r format(Sys.Date(), "%Y-%m-%d")`
+#-------------------
+
 library(readr)
 library(readxl)
 library(plm)
@@ -41,8 +47,6 @@ award_onlydf <- stripedf %>%
 
 # filtered df - proposals only
 prop_onlydf <- stripedf %>% filter(awarded==0)
-
-
 
 
 ########### REGRESSION ANALYSIS: FIRM CHARACTERISTICS ON WINNING/LOSING ####################
@@ -442,38 +446,6 @@ full_did_df <- did_merged %>% select(-c(patent_name, application_number, invento
 write.csv(full_df_sum, "patent_level_df.csv")
 write.csv(full_did_df, "did_df.csv")
 
-############################ LOAD IN THE ORBIS DATA ####################################
-orbis <- read_excel("data/orbis/historical_df_orbis.xlsx", sheet = "Results")
-
-df_filtered <- orbis %>%
-  select(-matches("\\.{3}\\d{2}$")) %>%
-  select(-matches("\\.{3}\\d{3}$"))
-
-matched_cols <- grep("(.*)(.*Year - \\d{1,2})", colnames(df_filtered), value = TRUE)
-prefixes <- gsub("(.*)(.*Year - \\d{1,2})", "\\1", matched_cols)
-unique_prefixes <- unique(prefixes)
-
-orbis_long <- df_filtered %>%
-  pivot_longer(
-    cols = all_of(matched_cols), # consider matched cols with annual ending
-    names_to = "colname",
-    values_to =  "value"
-      ) %>%
-  mutate(prefix = gsub("(.*)(.*Year - \\d{1,2})", "\\1", colname)
-  ) %>%
-  pivot_wider(
-    names_from = prefix,
-    values_from = value,
-    values_fill = list(value = NA)
-  ) 
-
-unnest_orbis <- orbis_long %>% 
-  unnest_wider(everything(), names_sep="_") 
-
-unnest_orbis <- as.data.frame(unnest_orbis)
-
-# export long form orbis
-write.csv(unnest_orbis, "orbis_long.csv", row.names = FALSE)
 
 
 

@@ -1,7 +1,6 @@
-#author:allegrasaggese
-#date: 3 oct 2024
-#purpose: a conversion of DID ORBIS SCRIPT from STATA into R 
-
+#' Author: [Allegra Saggese]
+#' Purpose: Convert SDID code from STATA to R (provided by Ignacio)
+#' Last updated: `r format(Sys.Date(), "%Y-%m-%d")`
 
 # Load necessary libraries
 library(dplyr)

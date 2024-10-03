@@ -1,6 +1,8 @@
-# script to clean and merge the microsoft data into one dataset
-# data was scraped from PDF, using Excel - PDF extraction software (no coding)
-# data includes only projects selected (not the applicant pool)
+#' Author: [Allegra Saggese]
+#' Purpose: cript to clean and merge the microsoft data into one dataset,
+#' data was scraped from PDF, using Excel - PDF extraction software (no coding),
+#' includes only projects selected (not the applicant pool)
+#' Last updated: `r format(Sys.Date(), "%Y-%m-%d")`
 
 library(tidyr)
 library(dplyr)
@@ -53,25 +55,12 @@ carbofex <- "MSFT110" # only match for project 1
 # create tuples between firm name in the winning bid applications and the IDs to match along
 
 
+# create two new columns in application data - winning bid (partial or full), 
+#partial winning bid (for those with combination contracts)
 
 
-
-
-# create two new columns in application data - winning bid (partial or full), partial winning bid (for those with combination contracts)
-
-
-# create column of share of offered credits actually contracted for winning bid (applicant proposal / actual contracted volume)
-
-
-
-
-
-
-
-
-
-
-
+# create column of share of offered credits actually 
+#contracted for winning bid (applicant proposal / actual contracted volume)
 
 
 # bind m21-23

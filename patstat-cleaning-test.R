@@ -1,6 +1,6 @@
-# PURPOSE: get patent data from google and PATSTAT, merge with the STRIPE data 
-# Author: ALLEGRA SAGGESE
-
+#' Author: [Allegra Saggese]
+#' Purpose: Upload and clean the PATSTAT data for relevant variables of interest for our firms 
+#' Last updated: `r format(Sys.Date(), "%Y-%m-%d")`
 
 library(tidyr)
 library(dplyr)
@@ -11,8 +11,9 @@ library(R.utils)
 library(RSQLite)
 
 # to input the PATSTAT DATA 
-setwd("C:/Users/SAGGESE/Documents/GitHub/amc_ccs/data/PATSTAT")
+setwd("C:/Users/SAGGESE/Documents/GitHub/amc_ccs/data/PATSTAT") #FIND THIS DATA
 temp = list.files(pattern="\\.csv$")
+
 #for (i in 1:length(temp)) assign(temp[i], read.csv(temp[i])) # too time intensive
 
 file1 = paste0(getwd(), "/tls226_part02.csv")

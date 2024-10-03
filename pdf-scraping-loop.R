@@ -1,3 +1,8 @@
+#' Author: [Allegra Saggese]
+#' Purpose: Extract data in loop from PDFs provided by applicants for both Microsoft
+#' and STRIPE firms
+#' Last updated: `r format(Sys.Date(), "%Y-%m-%d")`
+
 #install.packages("pdftools", dependencies=TRUE)
 #install.packages("tabulizer") # to parse out tables in the PDF (requires rJava environment)
 #install.packages("devtools") # need to ensure Rtools - dependency - is installede here 
@@ -133,20 +138,6 @@ print(sections_with_patent)
     filter(trimws(Text) !="") %>%
     head(-26) %>%
     subset()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
