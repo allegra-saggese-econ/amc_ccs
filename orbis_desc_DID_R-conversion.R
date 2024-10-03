@@ -100,8 +100,7 @@ write_csv(collapsed_google, file.path(projdir, "data/temp/applicants_treatment.c
 merged_data <- full_panel %>%
   left_join(collapsed_google, by = "applicant_name")
 
-# Analyze and visualize further as per the original Stata code
-# (Continue translating the rest of the operations similarly)
+### NOTE THIS IS NOT COMPLETE! 
 
-# Note: Due to the length of the code, the above translation captures the structure and main operations.
-# You can proceed to implement the remaining sections by following similar steps as demonstrated.
+
+
