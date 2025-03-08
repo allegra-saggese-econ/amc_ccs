@@ -1,9 +1,11 @@
 #' Author: [Allegra Saggese]
 #' Purpose: Clean orbis data for merging with firm-level data,
 #' firstly, transform the Orbis dataframe from wide to long format.
+#' NOTE: DATA DOWNLOAD FROM ORBIS WAS SPRING 2024
 #' Last updated: `r format(Sys.Date(), "%Y-%m-%d")`
 library(readr)
 library(readxl)
+library(stringr)
 library(tidyr)
 library(tidyverse)
 library(dplyr)
@@ -12,52 +14,133 @@ library(ggplot2)
 ##### Load in raw historical data, taken from download on ORBIS 
 orbis <- read_excel("data/orbis/historical_df_orbis.xlsx", sheet = "Results")
 
-#### Cleaning step 1
-df_filtered <- orbis %>%
-  select(-matches("\\.{3}\\d{2}$")) %>%
-  select(-matches("\\.{3}\\d{3}$"))
 
-matched_cols <- grep("(.*)(.*Year - \\d{1,2})", colnames(df_filtered), value = TRUE)
-prefixes <- gsub("(.*)(.*Year - \\d{1,2})", "\\1", matched_cols)
-unique_prefixes <- unique(prefixes)
+# CLEAN COLNAMES 
 
-orbis_long <- df_filtered %>%
+# Function to clean column names and replace "Year - X" with actual years
+clean_and_replace_years <- function(names, base_year = 2024) {
+  names %>%
+    str_replace_all("\n", " ") %>%          # Replace newline characters with spaces
+    str_replace_all("\\.\\.\\..*", "") %>%  # Remove trailing dots/numbers
+    str_replace_all("Last avail. yr", as.character(base_year)) %>%  # Assume last available year is 2024
+    str_replace_all("Year - (\\d+)", function(x) {
+      year_num <- as.numeric(str_extract(x, "\\d+"))
+      return(as.character(base_year - year_num))
+    }) 
+}
+
+colnames(orbis) <- clean_and_replace_years(colnames(orbis), base_year = 2024)
+print(colnames(orbis))
+
+# clean colnames with fine-tooth comb
+colnames(orbis)[colnames(orbis) == "Company name Latin alphabet"] <- "firm_name"
+
+# check dupes
+any(duplicated(colnames(orbis)))  # duplicates exist
+colnames(orbis) <- make.unique(colnames(orbis))
+colnames(orbis)[colnames(orbis) == ""] <- paste0("Unnamed_", seq_len(sum(colnames(orbis) == "")))
+
+# take out static cols before we pivot 
+static_cols <- colnames(orbis)[!str_detect(colnames(orbis), "\\d{4}$")]
+
+orbis_static <- orbis %>%
+  select(all_of(static_cols))
+
+# Keep only the columns that need to be pivoted
+orbis_pivot <- orbis %>%
+  select(-all_of(setdiff(static_cols, "firm_name")))
+
+# cols sum to 711 - total in raw data
+dim(orbis_static)  # Number of static columns
+dim(orbis_pivot)   # Number of columns to pivot
+
+# WIDE TO LONG
+orbis_long <- orbis_pivot %>%
   pivot_longer(
-    cols = all_of(matched_cols), # consider matched cols with annual ending
-    names_to = "colname",
-    values_to =  "value"
+    cols = -c(firm_name),
+    names_to = c(".value", "Year"),
+    names_pattern = "^(.*) (\\d{4})\\.*\\d*$"  # Extract variable name + year, ignoring suffixes
   ) %>%
-  mutate(prefix = gsub("(.*)(.*Year - \\d{1,2})", "\\1", colname)
-  ) %>%
-  pivot_wider(
-    names_from = prefix,
-    values_from = value,
-    values_fill = list(value = NA)
-  ) 
+  mutate(Year = as.numeric(Year))
 
-unnest_orbis <- orbis_long %>% 
-  unnest_wider(everything(), names_sep="_") 
+# Check transformed data
+head(orbis_long)
+# merge back 
+orbis_final <- left_join(orbis_long, orbis_static, by = "firm_name") # double check many-to-many matches
 
-unnest_orbis <- as.data.frame(unnest_orbis)
+
+# DROP completely empty columns (no data for any years)
+clean_orbis <- orbis_final %>%
+  select(where(~ !all(is.na(.)) & !all(. == "n.a.", na.rm = TRUE))) - # drop 7 cols
+
 
 # export long form orbis
-write.csv(unnest_orbis, "orbis_long.csv", row.names = FALSE)
+date_str <- Sys.Date()
+filename <- paste0("orbis_long_", date_str, ".csv")
+
+write.csv(clean_orbis, filename, row.names = FALSE)
+
+# Check data fill 
+non_missing_df <- non_missing_percentage %>%
+  pivot_longer(cols = everything(), names_to = "Column", values_to = "Percent_Filled")
+
+non_missing_sorted <- non_missing_df %>%
+  arrange(desc(Percent_Filled))
+
+# plot data matches
+
+ggplot(non_missing_df, aes(x = reorder(Column, Percent_Filled), y = Percent_Filled)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  coord_flip() +  # Flip for better readability
+  labs(
+    title = "Percentage of Non-Missing Data per Column",
+    x = "Column Name",
+    y = "Percentage of Filled Observations"
+  ) +
+  theme_minimal() + 
+  theme(axis.text.y = element_text(size = 4))
+
+# NEXT STEPS -- we need to figure out why there are duplicates and make 
+# sure they fit into the pivot -- otherwise the data is all messed up 
 
 
-#### Cleaning step 2 (need to preserve the ORBIS date/time column
-# Rename the columns to standardize the year pattern
-orbis_renamed <- orbis %>%
-  rename_with(.cols = ends_with("Last avail. yr"), 
-              .fn = ~ sub("Last avail\\. yr", "Year - 0", .))
 
-# Pivot the dataframe from wide to long format
-orbis_24_long <- orbis_renamed %>%
-  pivot_longer(
-    cols = matches("Year - \\d+"), # Select columns ending in "Year - ..."
-    names_to = c(".value", "Year"),
-    names_pattern = "(.*) Year - (\\d+)"
-  ) %>%
-  mutate(Year = 2023 - as.integer(Year)) # Convert year pattern to actual years
+########## EARLIER CODE --- TO REVISIT TO SEE IF IT IS HELPFUL! 
+# ------ QA THE RENAME 
+# manual check of cols show some still remain without format adjustments
+# one is unimportant -- i.e. SOURCE OF FINANCIALS (drop all that begin with that phrase)
+
+no_employee <- grep("Number of employees", colnames(orbis), value = TRUE)
+# repeats on year 1,2,3,4
+employee_year_columns <- grep("Number of employees\nYear - [1-4]", colnames(orbis), value = TRUE)
+subset_df <- orbis[, employee_year_columns]
+
+# subset from manual check looks duplicated -- will check again 
+comparison_results <- list()
+for (year in 1:4) {
+  # Step 3: Find all columns related to this year
+  year_cols <- grep(paste0("Number of employees\nYear - ", year), employee_year_columns, value = TRUE)
+  
+  # Step 4: Pairwise comparison between columns for this year
+  if (length(year_cols) > 1) {
+    for (i in 1:(length(year_cols) - 1)) {
+      for (j in (i + 1):length(year_cols)) {
+        col1 <- year_cols[i]
+        col2 <- year_cols[j]
+        
+        # Compare the two columns and store the result
+        comparison_results[[paste(col1, "vs", col2)]] <- all.equal(subset_df[[col1]], subset_df[[col2]])
+      }
+    }
+  }
+}
+
+# Print the comparison results
+print(comparison_results) # no string mismatches for equivalent years, can drop the dupes
+
+
+
+
 
 # Print the transformed dataframe
 print(orbis_24_long)
@@ -69,18 +152,24 @@ replace_na_text <- function(df) {
     mutate_all(~ ifelse(. == "n.a.", NA, .)) # Replace "n.a." with NA across all columns
 }
 
-# Example usage:
+# clean dataframe
 orbis_24_long_cleaned <- replace_na_text(orbis_24_long)
+# id column formats
+class_cols <- sapply(orbis_24_long_cleaned, class)
+sum_class_cols <- table(sapply(orbis_24_long_cleaned, class))
 
 
 # function to calculate NA percentage
-na_percentage <- function(column) {
-  mean(is.na(column)) * 100
+na_percentage_by_year <- function(df) {
+  df %>%
+    group_by(Year) %>%
+    summarise(across(where(is.numeric), ~ mean(is.na(.)) * 100))  # Calculate NA percentage for all numeric columns
 }
+# Example usage:
+orbis_24_na_summary <- na_percentage_by_year(orbis_24_long_cleaned)
 
-orbis_24_na_summary <- orbis_24_long_cleaned %>%
-  group_by(Year) %>%
-  summarize(across(everything(), na_percentage))
+# Print the NA percentage summary
+print(orbis_24_na_summary)
 
 
 
