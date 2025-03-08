@@ -32,28 +32,30 @@ This project investigates the intersection of innovation and Carbon Capture and 
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/allegra-saggese-econ/amc_ccs.git
+2.	Navigate to the project directory:
 3. **Analysis Scripts**
-	•	Data Cleaning:
+   - Data Cleaning:
            - microsoft_data_cleaning.R: Cleans Microsoft data.
            - orbis-clean-merge.R: Merges and cleans Orbis data.
            - patstat-cleaning-test.R: Cleans PATSTAT data.
-	•	Data Analysis:
+   - Data Analysis:
             - prelim_analysis.R: Conducts preliminary analysis.
            - orbis_desc_DID_R-conversion.R: Processes Orbis data for DiD analysis.
-	•	Data Scraping:
+   - Data Scraping:
             - pdf-scraping-loop.R: Scrapes data from PDFs.
+***
 
-Outputs
-	•	Cleaned Data: Stored in clean_outputs/.
-	•	Graphs and Visualizations: Available in graphs_output/ and visual_outputs/.
+##### Outputs
+- Cleaned Data: Stored in clean_outputs/.
+- Graphs and Visualizations: Available in graphs_output/ and visual_outputs/.
 
-Contributing
+##### Contributing
 Contributions are welcome! Please fork the repository and create a pull request with your proposed changes.
 
-License
+##### License
 This project is licensed under the MIT License.
 
-Contact
+##### Contact
 For questions or feedback, please contact Allegra Saggese.
 
 ## Outstanding tasks 
