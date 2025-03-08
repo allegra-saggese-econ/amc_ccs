@@ -35,14 +35,14 @@ This project investigates the intersection of innovation and Carbon Capture and 
 2.	Navigate to the project directory:
 3. **Analysis Scripts**
    - Data Cleaning:
-           - microsoft_data_cleaning.R: Cleans Microsoft data.
-           - orbis-clean-merge.R: Merges and cleans Orbis data.
-           - patstat-cleaning-test.R: Cleans PATSTAT data.
+     - microsoft_data_cleaning.R: Cleans Microsoft data.
+     - orbis-clean-merge.R: Merges and cleans Orbis data.
+     - patstat-cleaning-test.R: Cleans PATSTAT data.
    - Data Analysis:
-            - prelim_analysis.R: Conducts preliminary analysis.
-           - orbis_desc_DID_R-conversion.R: Processes Orbis data for DiD analysis.
+     - prelim_analysis.R: Conducts preliminary analysis.
+     - orbis_desc_DID_R-conversion.R: Processes Orbis data for DiD analysis.
    - Data Scraping:
-            - pdf-scraping-loop.R: Scrapes data from PDFs.
+   -     pdf-scraping-loop.R: Scrapes data from PDFs.
 ***
 
 ##### Outputs
