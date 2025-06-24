@@ -46,9 +46,20 @@ static_cols <- colnames(orbis)[!str_detect(colnames(orbis), "\\d{4}$")]
 orbis_static <- orbis %>%
   select(all_of(static_cols))
 
+storestring <- colnames(orbis_static)
+
+# drop empty rows 
+orbis <- orbis %>%
+  filter(!is.na(firm_name))
+
 # Keep only the columns that need to be pivoted
 orbis_pivot <- orbis %>%
   select(-all_of(setdiff(static_cols, "firm_name")))
+
+storestring2 <- colnames(orbis_pivot)
+
+# drop the intersecting cols 
+intersect <- intersect(storestring, storestring2) # its empty! 
 
 # cols sum to 711 - total in raw data
 dim(orbis_static)  # Number of static columns
@@ -65,13 +76,30 @@ orbis_long <- orbis_pivot %>%
 
 # Check transformed data
 head(orbis_long)
+
+# drop extra cols in orbis-static that have been transformed 
+orbis_static_2 <- orbis_static %>% 
+  select(-matches("\\.1$")) %>% 
+  select(-matches("\\.2$"))
+
+num_cols <- ncol(orbis_static_2) # Count remaining columns
+print(num_cols)
+
+orbis_static_2 <- orbis_static_2 %>%
+  select(-1) %>%
+  filter(!is.na(firm_name))
+
 # merge back 
-orbis_final <- left_join(orbis_long, orbis_static, by = "firm_name") # double check many-to-many matches
+orbis_final <- left_join(orbis_long, orbis_static_2, 
+                         by = "firm_name", 
+                         relationship = "many-to-many") # double check many-to-many matches
 
 
-# DROP completely empty columns (no data for any years)
-clean_orbis <- orbis_final %>%
-  select(where(~ !all(is.na(.)) & !all(. == "n.a.", na.rm = TRUE))) - # drop 7 cols
+# get char column names 
+
+# get other columns - and make them all numeric for ease
+
+# DROP completely empty columns (no data for any years) with both col and NA 
 
 
 # export long form orbis
