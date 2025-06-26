@@ -23,8 +23,8 @@ if (username == "ignaciobanaressanchez") {
 
 
 
-# Import Orbis data
-orbis_data <- read_csv(file.path(projdir, "data/orbis/orbis_gen_1.csv"))
+# Import Orbis data - updated with clean data
+orbis_data <- read_csv(file.path(projdir, "clean_outputs/orbis_long_2025-06-26.csv"))
 
 # Import patent<>firm matched data 
 ##### needs formatting work 
