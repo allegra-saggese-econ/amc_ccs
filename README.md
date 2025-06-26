@@ -18,7 +18,7 @@ This project investigates the intersection of innovation and Carbon Capture and 
 ## Key Files
 
 - **amc_ccs.Rproj**: R project file.
-- **did_df.csv**: Dataset for Difference-in-Differences analysis.
+- **did_df.csv**: Dataset for Difference-in-Differences analysis. In month-year format for each firm. 
 - **microsoft_data_cleaning.R**: Script for cleaning Microsoft data.
 - **orbis-clean-merge.R**: Script for merging and cleaning Orbis data.
 - **orbis_desc_DID_R-conversion.R**: Orbis data processing for DiD analysis.
@@ -35,14 +35,17 @@ This project investigates the intersection of innovation and Carbon Capture and 
 2.	Navigate to the project directory:
 3. **Analysis Scripts**
    - Data Cleaning:
-     - microsoft_data_cleaning.R: Cleans Microsoft data.
-     - orbis-clean-merge.R: Merges and cleans Orbis data.
-     - patstat-cleaning-test.R: Cleans PATSTAT data.
+     - orbis-clean-merge.R: Merges and cleans Orbis data into firm-year-level observation
    - Data Analysis:
      - prelim_analysis.R: Conducts preliminary analysis.
      - orbis_desc_DID_R-conversion.R: Processes Orbis data for DiD analysis.
    - Data Scraping:
    -     pdf-scraping-loop.R: Scrapes data from PDFs.
+   - DEAD SCRIPTS:
+      - z-dead-microsoft_data_cleaning.R: Cleans Microsoft data.
+      - z-dead-patstat-cleaning-test.R: Cleans PATSTAT data.
+
+
 ***
 
 ##### Outputs
