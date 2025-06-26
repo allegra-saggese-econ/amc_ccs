@@ -10,6 +10,7 @@ library(tidyr)
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
+library(lubridate)
 
 ##### Load in raw historical data, taken from download on ORBIS 
 orbis <- read_excel("data/orbis/historical_df_orbis.xlsx", sheet = "Results")
@@ -96,40 +97,197 @@ orbis_final <- left_join(orbis_long, orbis_static_2,
 
 
 # get char column names 
+orbis_final %>%
+  summarise(across(everything(), ~ class(.))) %>%
+  pivot_longer(everything(), names_to = "Column", values_to = "Type") %>%
+  count(Type)
 
-# get other columns - and make them all numeric for ease
+# make list of actual char cols 
+charcols <- c("Source of financials", "Inactive", "Quoted", "Branch", "OwnData", "Woco",
+              "Country ISO code", "Consolidation code", "Type of entity", "Size classification",
+              "Entity type", "Ticker symbol", "firm_name")
+
+# rename date of incorp col for ease of manipulation
+orbis_final <- orbis_final %>%
+  rename(datinc = `Date of incorporation`)
+
+orbis_final <- orbis_final %>%
+  mutate(
+    datinc = na_if(datinc, "n.a."),         # convert "n.a." to NA
+    datinc = as.numeric(datinc),            # convert to numeric (NAs stay as NA)
+    datinc = if_else(
+      !is.na(datinc) & datinc > 3000,       # treat as Excel serial date - based on where I pulled the data
+      year(as.Date(datinc, origin = "1899-12-30")),
+      datinc                                 
+    )
+  )
+
+# convert all to numeric except for purposefully characters
+orbis_final2 <- orbis_final %>%
+  mutate(across(
+    .cols = -all_of(charcols),
+    .fns = ~ as.numeric(as.character(.))
+  ))
 
 # DROP completely empty columns (no data for any years) with both col and NA 
+orbis_long_cleaned <- orbis_final2 %>%
+  group_by(firm_name) %>%
+  filter(!all(across(-c(firm_name, Year), ~ all(is.na(.))))) %>%
+  ungroup()
+
+# calc the share of col filled out by num / char / total
+indic_cols <- c("firm_name", "Year")
+
+numeric_cols <- orbis_final2 %>%
+  select(-all_of(indic_cols)) %>%
+  select(where(is.numeric)) %>%
+  names()
+
+character_cols <- orbis_final2 %>%
+  select(-all_of(c(indic_cols, numeric_cols))) %>%
+  select(where(is.character)) %>%
+  names()
+
+fill_rate <- function(x) {
+  !is.na(x) & x != "n.a."
+}
+
+# Compute percentages for each row
+row_summary <- orbis_final2 %>%
+  mutate(
+    numeric_fill = rowSums(across(all_of(numeric_cols), ~ !is.na(.))) / length(numeric_cols),
+    character_fill = rowSums(across(all_of(character_cols), fill_rate)) / length(character_cols),
+    overall_fill = rowSums(across(-all_of(indic_cols), fill_rate)) / (ncol(.) - length(indic_cols))
+  ) %>%
+  select(firm_name, Year, numeric_fill, character_fill, overall_fill)
+
+# View as a summary table
+print(row_summary)
+
+firm_fill_summary <- row_summary %>%
+  group_by(firm_name) %>%
+  summarise(
+    avg_numeric_fill = mean(numeric_fill, na.rm = TRUE),
+    avg_character_fill = mean(character_fill, na.rm = TRUE),
+    avg_overall_fill = mean(overall_fill, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# View the summary
+print(firm_fill_summary)
 
 
-# export long form orbis
+# plot - histogram by data completeness
+ggplot(firm_fill_summary, aes(x = avg_overall_fill)) +
+  geom_histogram(binwidth = 0.05, fill = "steelblue", color = "white") +
+  labs(
+    title = "Distribution of Average Overall Fill Rate by Firm",
+    x = "Average Overall Fill Rate",
+    y = "Number of Firms"
+  ) +
+  theme_minimal()
+
+#plot - histogram data completeness by year
+ggplot(row_summary, aes(x = overall_fill)) +
+  geom_histogram(binwidth = 0.05, fill = "steelblue", color = "white") +
+  facet_wrap(~ Year, scales = "free_y") +
+  labs(
+    title = "Distribution of Overall Fill Rate by Year",
+    x = "Overall Fill Rate",
+    y = "Number of Firms"
+  ) +
+  theme_minimal()
+
+#plot - histogram data completeness by firm size
+size_lookup <- orbis_final2 %>%
+  select(firm_name, `Size classification`, `Type of entity`, `NACE Rev. 2, core code (4 digits)`) %>%
+  distinct()
+ff_size <- left_join(firm_fill_summary, size_lookup, by = "firm_name") #df with size 
+
+ggplot(ff_size, aes(x = avg_overall_fill)) +
+  geom_histogram(binwidth = 0.05, fill = "darkcyan", color = "white") +
+  facet_wrap(~ `Size classification`, scales = "free_y") +
+  labs(
+    title = "Distribution of Overall Fill Rate by Firm Size",
+    x = "Overall Fill Rate",
+    y = "Number of Firms"
+  ) +
+  theme_minimal()
+
+#plot - histogram by entity type 
+ggplot(ff_size, aes(x = avg_overall_fill)) +
+  geom_histogram(binwidth = 0.05, fill = "darkgreen", color = "white") +
+  facet_wrap(~ `Type of entity`, scales = "free_y") +
+  labs(
+    title = "Distribution of Overall Fill Rate by entity type",
+    x = "Overall Fill Rate",
+    y = "Number of Firms"
+  ) +
+  theme_minimal()
+
+
+# plot - bar chart by data completeness per firm
+ggplot(firm_fill_summary, aes(x = reorder(firm_name, avg_overall_fill), y = avg_overall_fill)) +
+  geom_col(fill = "darkorange") +
+  labs(
+    title = "Average Overall Fill Rate by Firm",
+    x = "Firm Name",
+    y = "Average Fill Rate"
+  ) +
+  coord_flip() +
+  theme_minimal() + 
+  theme(
+    axis.text.y = element_text(size = 5)  # Smaller text for firm names
+  )
+
+# create data of filled percentage by column (data point)
+numeric_cols <- orbis_final2 %>%
+  select(where(is.numeric))
+
+# Calculate percentage of NAs and non-NAs
+na_summary <- data.frame(
+  column_name = colnames(numeric_cols),
+  percent_na = colMeans(is.na(numeric_cols)) * 100
+) %>%
+  mutate(percent_non_na = 100 - percent_na)
+
+# View the summary table
+print(na_summary)
+write_csv(na_summary, "numeric_column_na_summary.csv")
+
+# now by year
+numeric_cols <- setdiff(
+  names(orbis_final2)[sapply(orbis_final2, is.numeric)],
+  c("Year")
+)
+
+# Calculate % NA and % non-NA by Year and Column
+na_by_year <- orbis_final2 %>%
+  select(Year, all_of(numeric_cols)) %>%
+  pivot_longer(-Year, names_to = "column_name", values_to = "value") %>%
+  group_by(Year, column_name) %>%
+  summarise(
+    percent_na = mean(is.na(value)) * 100,
+    percent_non_na = 100 - percent_na,
+    .groups = "drop"
+  )
+
+# View the result
+print(na_by_year)
+write_csv(na_by_year, "numeric_na_summary_by_year.csv")
+
+
+#### EXPORT DATA 
+# export long form orbis with NAs
 date_str <- Sys.Date()
 filename <- paste0("orbis_long_", date_str, ".csv")
 
-write.csv(clean_orbis, filename, row.names = FALSE)
+write.csv(orbis_final2, filename, row.names = FALSE)
 
-# Check data fill 
-non_missing_df <- non_missing_percentage %>%
-  pivot_longer(cols = everything(), names_to = "Column", values_to = "Percent_Filled")
 
-non_missing_sorted <- non_missing_df %>%
-  arrange(desc(Percent_Filled))
 
-# plot data matches
 
-ggplot(non_missing_df, aes(x = reorder(Column, Percent_Filled), y = Percent_Filled)) +
-  geom_bar(stat = "identity", fill = "skyblue") +
-  coord_flip() +  # Flip for better readability
-  labs(
-    title = "Percentage of Non-Missing Data per Column",
-    x = "Column Name",
-    y = "Percentage of Filled Observations"
-  ) +
-  theme_minimal() + 
-  theme(axis.text.y = element_text(size = 4))
 
-# NEXT STEPS -- we need to figure out why there are duplicates and make 
-# sure they fit into the pivot -- otherwise the data is all messed up 
 
 
 
@@ -165,9 +323,6 @@ for (year in 1:4) {
 
 # Print the comparison results
 print(comparison_results) # no string mismatches for equivalent years, can drop the dupes
-
-
-
 
 
 # Print the transformed dataframe
